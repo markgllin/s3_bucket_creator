@@ -32,6 +32,6 @@ jobs:
     - name: Terraform Apply
       id: apply
       run: |
-        terraform apply -no-color \
+        terraform apply -no-color -auto-approve \
         -var="aws_region=us-west-2" \
         -var="availability_zone=us-west-2a"
