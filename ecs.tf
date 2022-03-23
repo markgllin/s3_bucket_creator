@@ -12,10 +12,12 @@ resource "aws_ecs_cluster" "ecs_s3_ct_bkt" {
 }
 
 resource "aws_ecs_task_definition" "ecs_s3_ct_bkt_td" {
-  family = "ecs-${local.service_name}-td"
-  cpu                = "256"
-  memory             = "512"
-  network_mode       = "awsvpc"
+  family             = "ecs-${local.service_name}-td"
+  execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
+
+  cpu          = "256"
+  memory       = "512"
+  network_mode = "awsvpc"
 
   requires_compatibilities = ["FARGATE"]
 
