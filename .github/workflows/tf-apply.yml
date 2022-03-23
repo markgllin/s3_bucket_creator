@@ -3,6 +3,8 @@ name: TF Apply
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - "docker/"
 
 jobs:
 
