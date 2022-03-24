@@ -12,12 +12,13 @@ resource "aws_ecs_cluster" "ecs_s3_ct_bkt" {
 }
 
 resource "aws_ecs_task_definition" "ecs_s3_ct_bkt_td" {
-  family             = "ecs-${local.service_name}-td"
+  family = "ecs-${local.service_name}-td"
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
+  task_role_arn      = aws_iam_role.ecs_task_role_s3_create.arn
 
-  cpu          = "256"
-  memory       = "512"
-  network_mode = "awsvpc"
+  cpu                = "256"
+  memory             = "512"
+  network_mode       = "awsvpc"
 
   requires_compatibilities = ["FARGATE"]
 
@@ -33,6 +34,20 @@ resource "aws_ecs_task_definition" "ecs_s3_ct_bkt_td" {
       name              = local.service_name
       essential         = true
       image             = "${aws_ecr_repository.ecr_s3_ct_bkt.repository_url}"
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.ecs_s3_ct_bkt.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      },
+      environment = [
+        {
+          name = "BUCKET_NAME",
+          value = ""
+        }
+      ]
     }
   ])
 }
