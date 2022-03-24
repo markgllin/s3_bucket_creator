@@ -24,6 +24,8 @@ def create_bucket(s3_client, bucket_name):
         
     print(f"Created {bucket_name}!")
 
+
+# Pass bucket name as an env var through TD to container.
 bucket_name = os.environ['BUCKET_NAME']
 s3 = boto3.resource('s3')
 
