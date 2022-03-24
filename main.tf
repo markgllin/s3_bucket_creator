@@ -1,7 +1,7 @@
 provider "aws" {
   default_tags {
     tags = {
-      environment = local.environment
+      environment = "Production"
       region      = var.aws_region
       service     = local.service_name
     }
