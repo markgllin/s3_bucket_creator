@@ -6,8 +6,14 @@ on:
     paths:
       - "docker/**"
 
+  workflow_dispatch:
+    inputs:
+      BUCKET_NAME:
+        description: 'S3 Bucket Name' 
+        required: true
+        default: 'buckety-mcbucketface'
+
 env:
-  TF_VERSION: 1.1.7
   AWS_REGION: us-west-2
 
 jobs:
@@ -17,6 +23,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Set env vars for manual dispatch
+      run: |
+        echo "BUCKET_NAME=${{ github.event.inputs.BUCKET_NAME}}" >> $GITHUB_ENV
+      if: github.event_name == 'workflow_dispatch'
+
+    - name: Set env vars for push dispatch
+      run: |
+        echo "BUCKET_NAME=marks-shiny-new-bucket-automatic"  >> $GITHUB_ENV
+      if: github.event_name != 'workflow_dispatch'    
+
     - name: "Checkout code"
       uses: "actions/checkout@v2"
 
@@ -67,7 +83,7 @@ jobs:
         --cluster ${{ env.ECS_CLUSTER }} \
         --task-definition ${{ env.TASK_DEFINITION }} \
         --network-configuration 'awsvpcConfiguration={subnets=[${{ env.SUBNET }}],securityGroups=[],assignPublicIp=DISABLED}' \
-        --overrides 'containerOverrides=[{name=${{ env.IMAGE_NAME }},environment=[{name=BUCKET_NAME,value=buckety-mcbucketface}]}]' \
+        --overrides 'containerOverrides=[{name=${{ env.IMAGE_NAME }},environment=[{name=BUCKET_NAME,value=${{ env.BUCKET_NAME }}}]}]' \
         --count 1 \
         --enable-ecs-managed-tags \
         --launch-type FARGATE \
