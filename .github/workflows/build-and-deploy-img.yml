@@ -1,0 +1,73 @@
+name: Deploy Image
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "docker/**"
+
+env:
+  TF_VERSION: 1.1.7
+  AWS_REGION: us-west-2
+
+jobs:
+
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: "Checkout code"
+      uses: "actions/checkout@v2"
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: "setup Terraform"
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Terraform Init
+      id: init
+      run: terraform init
+
+    - name: Terraform state show
+      id: state
+      run: |
+        echo "ECS_CLUSTER=$(terraform output --raw ecs_cluster_name)" >> $GITHUB_ENV
+        echo "ECR_URL=$(terraform output --raw ecr_repo_url)" >> $GITHUB_ENV
+        echo "TASK_DEFINITION=$(terraform output --raw s3_ct_bkt_td_name)" >> $GITHUB_ENV
+        echo "SUBNET=$(terraform output --raw private_subnet_id)" >> $GITHUB_ENV
+        echo "IMAGE_NAME=$(terraform output --raw ecr_image_name)" >> $GITHUB_ENV
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t ${{ env.ECR_URL }} ./docker
+        docker tag ${{ env.ECR_URL }} ${{ env.ECR_URL }}:$IMAGE_TAG
+        docker push ${{ env.ECR_URL }}
+        docker push ${{ env.ECR_URL }}:$IMAGE_TAG
+
+    - name: Run task definition
+      id: run-task
+      run: |
+        aws ecs run-task \
+        --cluster ${{ env.ECS_CLUSTER }} \
+        --task-definition ${{ env.TASK_DEFINITION }} \
+        --network-configuration 'awsvpcConfiguration={subnets=[${{ env.SUBNET }}],securityGroups=[],assignPublicIp=DISABLED}' \
+        --overrides 'containerOverrides=[{name=${{ env.IMAGE_NAME }},environment=[{name=BUCKET_NAME,value=buckety-mcbucketface}]}]' \
+        --count 1 \
+        --enable-ecs-managed-tags \
+        --launch-type FARGATE \
+        --platform-version LATEST
